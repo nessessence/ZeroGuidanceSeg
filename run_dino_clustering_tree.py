@@ -235,15 +235,6 @@ def find_part_cosegmentation(image_paths: List[str], elbow: float = 0.975, load_
                         count = count+2
                         # print('append ', tree_id_list[-2:])
 
-
-                # parent_list.append(p)
-                # parent_list.append(p+1)
-
-                # count = count+2
-        # print(part_list)
-        # print(parent_list)
-        # print(tree_id_list)
-        # exit()
         centroids = np.zeros((count, X.shape[1]))
         # for eu, pl in enumerate(part_list):
         #     centroids[0,eu] = centroids_overlap[0,pl]
@@ -253,10 +244,7 @@ def find_part_cosegmentation(image_paths: List[str], elbow: float = 0.975, load_
         for eu in range(count):
             pl = np.zeros_like(part_labels)
             pl[part_labels==eu] = 1
-            # print(pl.sum())
-            # print(X.shape)
-            # print(descriptors_list[0].shape)
-            # print(part_labels.reshape(-1,1).shape)
+
             if(pl.sum()>0):
                 # centroids[count_use] = np.sum(descriptors_list[0][0,0]*pl.reshape(-1,1), axis=0)/pl.sum()
                 centroids[count_use] = np.sum(X*pl.reshape(-1,1), axis=0)/pl.sum()
@@ -266,14 +254,7 @@ def find_part_cosegmentation(image_paths: List[str], elbow: float = 0.975, load_
                 # save_image(torch.from_numpy(pl)[None], f'./dino_feature/{tree_id_list[eu]}_{part_list[eu]}.png')
         centroids = np.reshape(centroids[:count_use], (1,count_use, X.shape[1]))
         tree.append(new_tree_id_list)
-        # faiss.normalize_L2(centroids.astype(np.float32))
-        # print(centroids[0,0,:5])
-        # print(centroids[0,-1,:5])
-        # print('pl ', part_list)
-        # print(new_part_list)
-        # print(new_tree_id_list)
-        # exit()
-        # part_labels = np.reshape(part_labels,(1,num_patches_list[0][0], num_patches_list[0][1]))
+
 
         for img, num_patches, load_size, descs in zip(image_pil_list, num_patches_list, load_size_list, descriptors_list):
             cur_part_num_labels = centroids.shape[1]
@@ -281,13 +262,7 @@ def find_part_cosegmentation(image_paths: List[str], elbow: float = 0.975, load_
             curr_normalized_descs = descs[0, 0].astype(np.float32)
             faiss.normalize_L2(curr_normalized_descs)  # in-place operation
 
-            # distance to parts
-            # print(curr_normalized_descs[:, None, :].shape) # 3025 1 384
-            # print(part_algorithm.centroids[None, ...].shape) # 1 25 384
-            # print(algorithm.centroids[None, bg_centroids, :].shape) #1 1 384
-            # print(centroids.shape)
-            # print((curr_normalized_descs[:, None, :] - part_algorithm.centroids[None, ...]).shape) #3025 25 384
-        
+
             dist_to_parts = ((curr_normalized_descs[:, None, :] - centroids) ** 2
                             ).sum(axis=2)
             
@@ -296,8 +271,6 @@ def find_part_cosegmentation(image_paths: List[str], elbow: float = 0.975, load_
             d_to_cent = dist_to_parts.reshape(num_patches[0], num_patches[1], cur_part_num_labels)
             # print(np.max(d_to_cent, axis=-1)[..., None].shape)#55 55 1
             d_to_cent = d_to_cent - np.max(d_to_cent, axis=-1)[..., None]
-            # print(d_to_cent.shape) #55 55 26
-            # print(np.min(d_to_cent), np.max(d_to_cent)) # -1.7258 0.0
             
             upsample = torch.nn.Upsample(size=load_size)
             u = np.array(upsample(torch.from_numpy(d_to_cent).permute(2, 0, 1)[None, ...])[0].permute(1, 2, 0)).astype(np.float32)
@@ -306,7 +279,6 @@ def find_part_cosegmentation(image_paths: List[str], elbow: float = 0.975, load_
             d.setUnaryEnergy(np.ascontiguousarray(u.reshape(-1, u.shape[-1]).T))
             # compat = [50, 15]
             compat = [25, 100]
-            # compat = [10, 100]
 
             d.addPairwiseGaussian(sxy=1, compat=compat[0], kernel=dcrf.DIAG_KERNEL,
                                 normalization=dcrf.NORMALIZE_SYMMETRIC)
@@ -444,6 +416,11 @@ if __name__ == "__main__":
     parser.add_argument('--f', default=0, type=int)
     parser.add_argument('--t', default=1, type=int)
 
+
+    parser.add_argument('--start_img_idx', default=0, type=int)
+    parser.add_argument('--end_img_idx', default=1, type=int)
+
+
     args = parser.parse_args()
 
     selected_img_paths = None 
@@ -472,67 +449,36 @@ if __name__ == "__main__":
             # curr_images = curr_images[478:]
             print('all_im: ',len(curr_images))
 
-
-
-
-
             curr_images = curr_images[args.f: args.t]
 
 
 
 
-            print(args.f, args.t)
-            # exit()
+
+
             for a in range(len(curr_images)):
-                print(f'--------------------------{args.f+a}-------------------------------------------')
                 curr_image = curr_images[a]
 
-
-                print(curr_image.name)
+                print(f'clustering on img idx-{args.start_img_idx+a}: {curr_image.name}')
 
 
                 curr_save_dir = save_dir / curr_image.name[:-4]
                 curr_save_dir.mkdir(parents=True, exist_ok=True)
-                # (curr_save_dir/Path('mask')).mkdir(exist_ok=True, parents=True)
-                # (curr_save_dir/Path('simmat')).mkdir(exist_ok=True, parents=True)
-                # (curr_save_dir/Path('tree')).mkdir(exist_ok=True, parents=True)
 
-                # computing part cosegmentation
                 parts_imgs, pil_images, sim_mat, trees, centroids = find_part_cosegmentation([curr_image], args.elbow, args.load_size, args.layer,
                                                                 args.facet, args.bin, args.thresh, args.model_type,
                                                                 args.stride, args.votes_percentage, args.sample_interval,
                                                                 args.low_res_saliency_maps, args.num_parts,
                                                                 args.num_crop_augmentations, args.three_stages,
                                                                 args.elbow_second_stage, curr_save_dir)
-                # print('??')
-                # print(len(parts_imgs))#2
-                # print(parts_imgs[0].shape)#224 324
-                # print(np.min(parts_imgs[0]), np.max(parts_imgs[0]))
-                # exit()
-                # saving part cosegmentations
+
                 part_figs = draw_part_cosegmentation(args.num_parts, parts_imgs, pil_images)
-                # print('??')
-                # print(args.num_parts)
-                # print(parts_imgs[0].shape)
-                # print(np.min(parts_imgs[0]), np.max(parts_imgs[0]))
-                # exit()
+  
                 thres_list = [0.0,0.1,0.2,0.3,0.4, 0.50, 0.6,0.7,0.8,0.9]
-                # thres_list = [-0.5, -0.25, -0.1, 0, 0.05, 0.15]
-                # thres_list = [0.9]
-                # for image, part_fig, parts_img in zip(curr_images, part_figs, parts_imgs):
-                # for image in curr_image:
+    
                 save_dict = {}
                 for parts_img,part_fig, tree, centroid in zip(parts_imgs,part_figs, trees, centroids):
-                    # print('??')
-                    # for th in range(len(thres_list)):
-                    #     ths = str(thres_list[th])
-                        # (curr_save_dir / f'{th}/mask/').mkdir(exist_ok=True, parents=True)
-                        # np.save(curr_save_dir / f'{th}/mask/{Path(image).stem}_mask.npy', parts_img)
-                        # np.save(curr_save_dir / f'{th}/mask/{Path(image).stem}_simmat.npy', sim_mat)
-                        # print(len(part_figs))
-                        # print(len(part_figs[0]))
-                        # exit()
-                    # for i in range(len(parts_img)):
+     
                     for th in range(len(thres_list)):
                         cur_dict = {}
                         tree_array = np.array(tree[th])
@@ -542,15 +488,9 @@ if __name__ == "__main__":
                         cur_dict['dino_simmat'] = torch.from_numpy(sim_mat[th])
                         cur_dict['tree'] = torch.from_numpy(tree_array)
                         cur_dict['centroids'] = torch.from_numpy(centroid_array)
-                        # (curr_save_dir / f'mask/').mkdir(exist_ok=True, parents=True)
-                        # np.save(curr_save_dir / f'mask/{ths:.2f}_{Path(curr_image).stem}.npy', parts_img[th])
-                        # np.save(curr_save_dir / f'simmat/{ths:.2f}_{Path(curr_image).stem}.npy', sim_mat[th])
-                        # tree_array = np.array(tree[th])
-                        # np.save(curr_save_dir / f'tree/{ths:.2f}_{Path(curr_image).stem}.npy', tree_array)
-                        # print(tree_array)
+
                         print(curr_save_dir / f'{ths:.2f}_{Path(curr_image).stem}_vis.png')
                         part_fig[th].savefig(curr_save_dir / f'{ths:.2f}_{Path(curr_image).stem}_vis.png', bbox_inches='tight', pad_inches=0)
                         save_dict[float(f'{ths:.2f}')] = cur_dict
                 torch.save(save_dict, curr_save_dir / 'cluster_log.pt')
                 plt.close('all')
-                # exit()
