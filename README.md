@@ -6,8 +6,9 @@ A ICCV 2023 paper ( [paper](https://openaccess.thecvf.com/content/ICCV2023/paper
 
 
 
-[<img src="https://img.youtube.com/vi/sIK3ExE0HnU/hqdefault.jpg" width="1280" height="720"
+[<img src="https://img.youtube.com/vi/sIK3ExE0HnU/maxresdefault.jpg" width="1280" height="720"
 />](https://www.youtube.com/embed/sIK3ExE0HnU)
+
 
 
 ### Overall Pipeline
