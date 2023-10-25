@@ -6,7 +6,7 @@ A ICCV 2023 paper ( [paper](https://openaccess.thecvf.com/content/ICCV2023/paper
 
 
 
-[<img src="https://img.youtube.com/vi/sIK3ExE0HnU/maxresdefault.jpg" width="1280" height="720"
+[<img src="https://img.youtube.com/vi/sIK3ExE0HnU/maxresdefault.jpg" width="640" height="360"
 />](https://www.youtube.com/embed/sIK3ExE0HnU)
 
 
